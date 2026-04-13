@@ -1,0 +1,18 @@
+{
+  "name": "deeplearn",
+  "version": "0.1.0",
+  "description": "Anti-vibe-coding plugin that gates AI assistance behind demonstrated understanding. Integrates with Obsidian for knowledge tracking.",
+  "author": {
+    "name": "Eason Huang"
+  },
+  "license": "MIT",
+  "keywords": ["learning", "education", "obsidian", "anti-vibe-coding"],
+  "skills": "./skills/",
+  "userConfig": {
+    "vault_path": {
+      "title": "Obsidian Vault Path",
+      "description": "Absolute path to your Obsidian vault (e.g., /home/user/notes)",
+      "type": "directory"
+    }
+  }
+}

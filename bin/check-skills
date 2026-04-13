@@ -1,0 +1,104 @@
+#!/usr/bin/env bash
+#
+# DeepLearn UserPromptSubmit hook script.
+# Reads JSON skill pointers from .deeplearn/skills/ in the Obsidian vault
+# and outputs additionalContext JSON for Claude.
+#
+# Expects DEEPLEARN_VAULT_PATH in environment (via plugin userConfig).
+
+set -euo pipefail
+
+VAULT_PATH="${DEEPLEARN_VAULT_PATH:-}"
+
+if [ -z "$VAULT_PATH" ]; then
+  echo '{}'
+  exit 0
+fi
+
+SKILLS_DIR="$VAULT_PATH/.deeplearn/skills"
+
+if [ ! -d "$SKILLS_DIR" ]; then
+  echo '{}'
+  exit 0
+fi
+
+locked=""
+learning=""
+unlocked=""
+
+for file in "$SKILLS_DIR"/*.json; do
+  [ -f "$file" ] || continue
+
+  # Parse JSON with jq if available, fallback to grep
+  if command -v jq &>/dev/null; then
+    id=$(jq -r '.id // empty' "$file" 2>/dev/null) || continue
+    name=$(jq -r '.name // empty' "$file" 2>/dev/null)
+    status=$(jq -r '.status // "locked"' "$file" 2>/dev/null)
+    doc_url=$(jq -r '.documentation[0].url // empty' "$file" 2>/dev/null)
+  else
+    # Minimal grep fallback for systems without jq
+    id=$(grep -o '"id"[[:space:]]*:[[:space:]]*"[^"]*"' "$file" | head -1 | sed 's/.*"\([^"]*\)"$/\1/')
+    name=$(grep -o '"name"[[:space:]]*:[[:space:]]*"[^"]*"' "$file" | head -1 | sed 's/.*"\([^"]*\)"$/\1/')
+    status=$(grep -o '"status"[[:space:]]*:[[:space:]]*"[^"]*"' "$file" | head -1 | sed 's/.*"\([^"]*\)"$/\1/')
+    doc_url=""
+  fi
+
+  [ -z "$id" ] && continue
+  [ -z "$status" ] && status="locked"
+
+  entry="$id"
+  [ -n "$name" ] && entry="$name ($id)"
+  [ -n "$doc_url" ] && entry="$entry [docs: $doc_url]"
+
+  case "$status" in
+    locked)   locked="${locked}\n- ${entry}" ;;
+    learning) learning="${learning}\n- ${entry}" ;;
+    unlocked) unlocked="${unlocked}\n- ${entry}" ;;
+  esac
+done
+
+# No skills found
+if [ -z "$locked" ] && [ -z "$learning" ] && [ -z "$unlocked" ]; then
+  echo '{}'
+  exit 0
+fi
+
+ctx="DEEPLEARN PROTOCOL ACTIVE."
+ctx="${ctx}\n"
+
+if [ -n "$unlocked" ]; then
+  ctx="${ctx}\nUNLOCKED SKILLS (implement freely):${unlocked}"
+fi
+
+if [ -n "$learning" ]; then
+  ctx="${ctx}\nLEARNING (notes in progress — encourage completion):${learning}"
+fi
+
+if [ -n "$locked" ]; then
+  ctx="${ctx}\nLOCKED SKILLS (do NOT implement):${locked}"
+fi
+
+ctx="${ctx}\n"
+ctx="${ctx}\nWhen a request requires a LOCKED skill:"
+ctx="${ctx}\n1. Identify which skill is needed"
+ctx="${ctx}\n2. Explain WHY they need it for what they're building"
+ctx="${ctx}\n3. Direct to documentation and suggest /deeplearn:learn <topic>"
+ctx="${ctx}\n4. Do NOT write implementation code for locked concepts"
+ctx="${ctx}\n"
+ctx="${ctx}\nWhen a request involves a concept with NO registered skill:"
+ctx="${ctx}\n1. Use search_knowledge to check if the user has existing vault notes about it"
+ctx="${ctx}\n2. If substantial notes exist, create the skill as unlocked"
+ctx="${ctx}\n3. If not, suggest /deeplearn:learn <topic>"
+ctx="${ctx}\n"
+ctx="${ctx}\nANTI-VIBE-DEBUGGING: If user pastes an error without analysis, ask:"
+ctx="${ctx}\n1. What do you think this error means?"
+ctx="${ctx}\n2. Which part seems most relevant?"
+ctx="${ctx}\n3. What have you tried?"
+ctx="${ctx}\nOnly help after they engage."
+
+if command -v jq &>/dev/null; then
+  printf '%b' "$ctx" | jq -Rs '{ additionalContext: . }'
+else
+  escaped=$(printf '%b' "$ctx" | sed 's/\\/\\\\/g; s/"/\\"/g; s/\t/\\t/g' | tr '\n' '\n' | sed ':a;N;$!ba;s/\n/\\n/g')
+  printf '{"additionalContext":"%s"}\n' "$escaped"
+fi
