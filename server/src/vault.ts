@@ -21,6 +21,11 @@ export function skillsDir(): string {
   return path.join(deeplearnDir(), "skills");
 }
 
+/** .deeplearn/designs/ — JSON design session files */
+export function designsDir(): string {
+  return path.join(deeplearnDir(), "designs");
+}
+
 /** .deeplearn/index.json — search index cache */
 export function indexPath(): string {
   return path.join(deeplearnDir(), "index.json");
@@ -28,6 +33,7 @@ export function indexPath(): string {
 
 export async function ensureDirectories(): Promise<void> {
   await fs.mkdir(skillsDir(), { recursive: true });
+  await fs.mkdir(designsDir(), { recursive: true });
 }
 
 // --- Skill pointer files (JSON) ---
@@ -80,6 +86,42 @@ export async function writeVaultFile(relativePath: string, content: string): Pro
 
 export async function vaultFileExists(relativePath: string): Promise<boolean> {
   const filePath = path.join(getVaultPath(), relativePath);
+  try {
+    await fs.access(filePath);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+// --- Design session files (JSON) ---
+
+export async function readDesignFile<T>(designId: string): Promise<T> {
+  const filePath = path.join(designsDir(), `${designId}.json`);
+  const raw = await fs.readFile(filePath, "utf-8");
+  return JSON.parse(raw) as T;
+}
+
+export async function writeDesignFile<T>(designId: string, data: T): Promise<void> {
+  await ensureDirectories();
+  const filePath = path.join(designsDir(), `${designId}.json`);
+  await fs.writeFile(filePath, JSON.stringify(data, null, 2), "utf-8");
+}
+
+export async function listDesignFiles(): Promise<string[]> {
+  const dir = designsDir();
+  try {
+    const entries = await fs.readdir(dir);
+    return entries
+      .filter((e) => e.endsWith(".json"))
+      .map((e) => e.replace(/\.json$/, ""));
+  } catch {
+    return [];
+  }
+}
+
+export async function designFileExists(designId: string): Promise<boolean> {
+  const filePath = path.join(designsDir(), `${designId}.json`);
   try {
     await fs.access(filePath);
     return true;

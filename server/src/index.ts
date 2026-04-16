@@ -5,7 +5,9 @@ import { createSkill, checkSkill, listSkills, startLearning, unlockSkill, linkNo
 import { dropTemplate } from "./templates.js";
 import { validateNotes } from "./validation.js";
 import { searchKnowledge, buildIndex } from "./search.js";
+import { createDesign, getDesign, listDesigns, writeDesignDoc } from "./designs.js";
 import type { SkillStatus } from "./skills.js";
+import type { DesignStatus } from "./designs.js";
 
 const server = new McpServer({
   name: "deeplearn",
@@ -226,6 +228,90 @@ server.tool(
   },
   async ({ skill_id }) => {
     const result = await unlockSkill(skill_id);
+    return {
+      content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }],
+    };
+  }
+);
+
+// --- Design Tools ---
+
+server.tool(
+  "create_design",
+  "Start a new design session. Creates a JSON pointer in .deeplearn/designs/. Use at the beginning of a /deeplearn:design flow.",
+  {
+    id: z
+      .string()
+      .regex(/^[a-z0-9-]+$/, "Design ID must be lowercase alphanumeric with hyphens")
+      .describe("Unique design ID (e.g., 'todo-app', 'auth-service')"),
+    name: z.string().describe("Human-readable project name (e.g., 'Todo App', 'Auth Service')"),
+  },
+  async ({ id, name }) => {
+    const result = await createDesign({ id, name });
+    return {
+      content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }],
+    };
+  }
+);
+
+server.tool(
+  "get_design",
+  "Check if a design session exists and its current status.",
+  {
+    design_id: z.string().describe("The design ID to check"),
+  },
+  async ({ design_id }) => {
+    const result = await getDesign(design_id);
+    return {
+      content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }],
+    };
+  }
+);
+
+server.tool(
+  "list_designs",
+  "List all design sessions, optionally filtered by status.",
+  {
+    status: z
+      .enum(["exploring", "complete"])
+      .optional()
+      .describe("Filter by status. Omit to list all designs."),
+  },
+  async ({ status }) => {
+    const designs = await listDesigns(status as DesignStatus | undefined);
+    return {
+      content: [
+        {
+          type: "text" as const,
+          text: JSON.stringify(
+            {
+              total: designs.length,
+              exploring: designs.filter((d) => d.status === "exploring"),
+              complete: designs.filter((d) => d.status === "complete"),
+            },
+            null,
+            2
+          ),
+        },
+      ],
+    };
+  }
+);
+
+server.tool(
+  "write_design_doc",
+  "Write the finalized DESIGN.md to the vault. Only call after Socratic questioning is complete and the user has confirmed the design. The content must be the user's own ideas formalized into the DESIGN.md format — never AI-generated design decisions.",
+  {
+    design_id: z.string().describe("The design session ID"),
+    content: z.string().describe("The full DESIGN.md content in the formalized format"),
+    path: z
+      .string()
+      .optional()
+      .default("DESIGN.md")
+      .describe("Vault-relative path to write (default: DESIGN.md at vault root)"),
+  },
+  async ({ design_id, content, path }) => {
+    const result = await writeDesignDoc(design_id, content, path);
     return {
       content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }],
     };

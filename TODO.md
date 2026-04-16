@@ -10,6 +10,14 @@
 - [ ] **Auto-detection of unregistered concepts** — The hook now instructs Claude to search the vault when it encounters an unregistered concept, but this relies on Claude's judgment. Consider adding heuristics to the hook script or a lightweight concept taxonomy.
 - [ ] **Enforce prerequisites** — `startLearning` should check that all prerequisite skills are unlocked before allowing the transition. Show the dependency chain when blocked.
 
+## Design Feature
+
+- [ ] **Design session resumption** — When a user returns to an `exploring` design, reconstruct context from conversation history or persist question/answer pairs in the session JSON.
+- [ ] **Design-to-skill bridge** — When a finalized DESIGN.md references technologies, auto-check whether skills exist and suggest `/deeplearn:learn` for missing ones before implementation begins.
+- [ ] **Design review skill** — `/deeplearn:design-review` that reads an existing DESIGN.md and asks Socratic questions about gaps, contradictions, or vague sections.
+- [ ] **Multiple design docs** — Support designs for sub-systems that reference each other (e.g., `DESIGN-auth.md`, `DESIGN-api.md`).
+- [ ] **Design versioning** — Track revisions when a user revisits a completed design. Store previous versions in `.deeplearn/designs/<id>/v1.md`, etc.
+
 ## High-Value (Next Iteration)
 
 - [ ] **Graduated debugging tiers** — Replace all-or-nothing Socratic debugging with tiers based on error complexity:

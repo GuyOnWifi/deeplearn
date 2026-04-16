@@ -10,9 +10,9 @@ Vibe coding (asking AI to implement things you don't understand) is detrimental 
 
 Three integration points, all bundled as a single Claude Code plugin:
 
-1. **Skills** — User-facing slash commands (`/deeplearn:learn`, `/deeplearn:check`, `/deeplearn:submit`, `/deeplearn:unlock`) that guide the learning workflow.
+1. **Skills** — User-facing slash commands (`/deeplearn:learn`, `/deeplearn:check`, `/deeplearn:submit`, `/deeplearn:unlock`, `/deeplearn:design`) that guide the learning and design workflows.
 2. **Hooks** — `UserPromptSubmit` hook reads skill state from `.deeplearn/skills/` and injects locked/unlocked context on every turn.
-3. **MCP Server** (TypeScript/Node) — provides tools for vault search, skill management, note linking, and validation.
+3. **MCP Server** (TypeScript/Node) — provides tools for vault search, skill management, note linking, validation, and design sessions.
 
 **Key principle**: Read everything, write nothing (to user's notes). Plugin data lives in `.deeplearn/` inside the vault. The user's existing notes are never modified.
 
@@ -29,8 +29,10 @@ deeplearn/
 │   │   └── SKILL.md               # /deeplearn:check [topic]
 │   ├── submit/
 │   │   └── SKILL.md               # /deeplearn:submit <skill-id>
-│   └── unlock/
-│       └── SKILL.md               # /deeplearn:unlock <skill-id>
+│   ├── unlock/
+│   │   └── SKILL.md               # /deeplearn:unlock <skill-id>
+│   └── design/
+│       └── SKILL.md               # /deeplearn:design <project-idea>
 ├── agents/
 │   └── gatekeeper.md              # Background agent: auto-detects locked skill usage
 ├── hooks/
@@ -62,7 +64,10 @@ vault/
 ├── .deeplearn/
 │   ├── skills/
 │   │   └── nix-flakes.json        # Skill pointer (JSON)
+│   ├── designs/
+│   │   └── todo-app.json          # Design session pointer (JSON)
 │   └── index.json                 # Search index cache
+├── DESIGN.md                      # Finalized design doc (output of /deeplearn:design)
 ├── ... user's existing notes ...
 ```
 
@@ -115,6 +120,58 @@ Auto-refreshes if older than 5 minutes. Force refresh with `index_vault` tool.
 | `link_notes` | Link vault notes to a skill as evidence |
 | `validate_notes` | Validate linked notes (minimal structural + semantic prompt for Claude) |
 | `unlock_skill` | Transition a skill to unlocked |
+| `create_design` | Start a new Socratic design session |
+| `get_design` | Check if a design session exists and its status |
+| `list_designs` | List all design sessions, optionally filtered by status |
+| `write_design_doc` | Write the finalized DESIGN.md to the vault |
+
+## Socratic Design
+
+The design feature helps users plan projects without AI driving creative decisions. The AI acts as a Socratic interviewer: it asks questions, reflects back the user's ideas, surfaces contradictions, and pushes for specificity — but never suggests solutions, technologies, or architectures.
+
+### Philosophy
+
+Just as DeepLearn gates implementation behind demonstrated understanding, the design flow gates formalization behind demonstrated thinking. The user must articulate their own design decisions. The AI's only job is to help them think clearly and capture that thinking in a structured format.
+
+### Design Session Flow
+
+1. User invokes `/deeplearn:design <project-idea>`
+2. AI creates a design session (`.deeplearn/designs/<id>.json`)
+3. AI asks Socratic questions through six phases: Problem, Users & Scope, Concepts, Behaviors, Architecture, Tradeoffs
+4. One question at a time — AI follows the user's energy, not a rigid script
+5. When the user has articulated enough, AI formalizes their words into the DESIGN.md format
+6. User confirms, AI writes DESIGN.md to the vault via `write_design_doc`
+
+### DESIGN.md Language
+
+A formalized markdown format for capturing design decisions. Sections:
+
+- **Problem** — why this needs to exist
+- **Users** — who it's for and what they need (structured by user type)
+- **Constraints** — hard (non-negotiable) and soft (preferred)
+- **Concepts** — domain model terms and relationships
+- **Behaviors** — what the system does (trigger → flow → result → edge cases)
+- **Architecture** — components, responsibilities, data flow
+- **Decisions** — choices made with rationale (table format)
+- **Open Questions** — unresolved items
+- **Non-Goals** — explicitly excluded
+
+Only sections the user actually addressed are included. Empty sections are omitted.
+
+### Design Session Pointers (`.deeplearn/designs/<id>.json`)
+
+```json
+{
+  "id": "todo-app",
+  "name": "Todo App",
+  "status": "exploring",
+  "created": "2026-04-13",
+  "completed_at": null,
+  "design_doc_path": null
+}
+```
+
+State machine: `exploring` → `complete`
 
 ## Search & Scoring
 

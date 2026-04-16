@@ -17,15 +17,11 @@ fi
 
 SKILLS_DIR="$VAULT_PATH/.deeplearn/skills"
 
-if [ ! -d "$SKILLS_DIR" ]; then
-  echo '{}'
-  exit 0
-fi
-
 locked=""
 learning=""
 unlocked=""
 
+if [ -d "$SKILLS_DIR" ]; then
 for file in "$SKILLS_DIR"/*.json; do
   [ -f "$file" ] || continue
 
@@ -56,14 +52,11 @@ for file in "$SKILLS_DIR"/*.json; do
     unlocked) unlocked="${unlocked}\n- ${entry}" ;;
   esac
 done
-
-# No skills found
-if [ -z "$locked" ] && [ -z "$learning" ] && [ -z "$unlocked" ]; then
-  echo '{}'
-  exit 0
 fi
 
-ctx="DEEPLEARN PROTOCOL ACTIVE."
+ctx="DEEPLEARN PROTOCOL ACTIVE — MANDATORY."
+ctx="${ctx}\n"
+ctx="${ctx}\nYou MUST check understanding BEFORE writing implementation code for ANY concept."
 ctx="${ctx}\n"
 
 if [ -n "$unlocked" ]; then
@@ -71,7 +64,7 @@ if [ -n "$unlocked" ]; then
 fi
 
 if [ -n "$learning" ]; then
-  ctx="${ctx}\nLEARNING (notes in progress — encourage completion):${learning}"
+  ctx="${ctx}\nLEARNING (notes in progress — encourage completion, do NOT implement):${learning}"
 fi
 
 if [ -n "$locked" ]; then
@@ -79,16 +72,22 @@ if [ -n "$locked" ]; then
 fi
 
 ctx="${ctx}\n"
-ctx="${ctx}\nWhen a request requires a LOCKED skill:"
-ctx="${ctx}\n1. Identify which skill is needed"
-ctx="${ctx}\n2. Explain WHY they need it for what they're building"
-ctx="${ctx}\n3. Direct to documentation and suggest /deeplearn:learn <topic>"
-ctx="${ctx}\n4. Do NOT write implementation code for locked concepts"
+ctx="${ctx}\n--- CRITICAL: GATING RULES ---"
 ctx="${ctx}\n"
-ctx="${ctx}\nWhen a request involves a concept with NO registered skill:"
-ctx="${ctx}\n1. Use search_knowledge to check if the user has existing vault notes about it"
-ctx="${ctx}\n2. If substantial notes exist, create the skill as unlocked"
-ctx="${ctx}\n3. If not, suggest /deeplearn:learn <topic>"
+ctx="${ctx}\nBEFORE writing ANY implementation code, check whether the user understands the concepts involved:"
+ctx="${ctx}\n"
+ctx="${ctx}\n1. If the concept has a LOCKED or LEARNING skill: REFUSE to implement. Explain why they need it, direct to docs, suggest /deeplearn:learn <topic>."
+ctx="${ctx}\n2. If the concept has an UNLOCKED skill: implement freely."
+ctx="${ctx}\n3. If the concept has NO registered skill (this is the most common case):"
+ctx="${ctx}\n   a. Call search_knowledge to check if the user has existing vault notes about it."
+ctx="${ctx}\n   b. If substantial notes exist (real understanding, not just mentions), create the skill as unlocked and proceed."
+ctx="${ctx}\n   c. If notes are thin or missing, do NOT implement. Instead:"
+ctx="${ctx}\n      - Tell the user what concept is needed and why"
+ctx="${ctx}\n      - Suggest /deeplearn:learn <topic>"
+ctx="${ctx}\n      - You may discuss the concept at a high level, show pseudocode or type signatures, but do NOT write working implementation code."
+ctx="${ctx}\n"
+ctx="${ctx}\nDo NOT skip these checks. Do NOT assume the user understands a concept just because they asked for it."
+ctx="${ctx}\nThe whole point of DeepLearn is to prevent vibe coding — implementing things you don't understand."
 ctx="${ctx}\n"
 ctx="${ctx}\nANTI-VIBE-DEBUGGING: If user pastes an error without analysis, ask:"
 ctx="${ctx}\n1. What do you think this error means?"
